@@ -11,12 +11,12 @@
  *   node grant-admin.js --dry-run  # Preview only, no changes
  */
 
-require("dotenv").config();
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, ".env") });
 
 const inquirer = require("inquirer");
 const chalk = require("chalk");
 const Table = require("cli-table3");
-const path = require("path");
 
 const jc = require("./lib/jumpcloud-api");
 const slack = require("./lib/slack-notify");
