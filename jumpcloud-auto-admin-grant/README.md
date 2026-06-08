@@ -48,6 +48,14 @@ CLI tool to grant **temporary admin/sudo privileges** on JumpCloud-managed devic
 
 ## Usage
 
+### Helpful Manual
+To see the CLI options and usage instructions, simply run:
+```bash
+jc-admin --help
+# or
+jc-admin -h
+```
+
 ### Interactive mode
 ```bash
 node grant-admin.js
