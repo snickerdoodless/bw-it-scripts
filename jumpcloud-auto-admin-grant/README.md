@@ -22,7 +22,13 @@ CLI tool to grant **temporary admin/sudo privileges** on JumpCloud-managed devic
    npm install
    ```
 
-2. **Configure `.env` file:**
+2. **(Optional) Install Globally:**
+   To run the script from anywhere using the `jc-admin` command, install it globally:
+   ```bash
+   npm install -g .
+   ```
+
+3. **Configure `.env` file:**
    ```env
    JC_API_KEY=your-jumpcloud-api-key
    JC_ORG_ID=your-org-id
@@ -37,12 +43,16 @@ CLI tool to grant **temporary admin/sudo privileges** on JumpCloud-managed devic
 ### Interactive mode
 ```bash
 node grant-admin.js
+# Or if installed globally:
+jc-admin
 ```
 
 ### Auto mode (Fast Lane)
 Skip all prompts and grant admin immediately for the default 24 hours. Just pass the emails as arguments.
 ```bash
 node grant-admin.js john@company.com jane@company.com
+# Or if installed globally:
+jc-admin john@company.com jane@company.com
 ```
 
 ### Dry-run mode (preview only)
