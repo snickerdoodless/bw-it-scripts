@@ -22,8 +22,16 @@ CLI tool to grant **temporary admin/sudo privileges** on JumpCloud-managed devic
    npm install
    ```
 
-2. **(Optional) Install Globally:**
-   To run the script from anywhere using the `jc-admin` command, install it globally:
+2. **Setup Global Command (Tutorial - Optional):**
+   If you want to run this script from anywhere without needing to navigate to this folder every time, you can register the `jc-admin` command globally on your system.
+   
+   **Option A: Using NPM Link (Recommended)**
+   Creates a symlink to this directory.
+   ```bash
+   npm link
+   ```
+   
+   **Option B: Using Global Install**
    ```bash
    npm install -g .
    ```
