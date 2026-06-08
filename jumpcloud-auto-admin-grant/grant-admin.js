@@ -80,6 +80,28 @@ function printBanner() {
   console.log("");
 }
 
+function showHelp() {
+  printBanner();
+  console.log("  Grants temporary admin/sudo privileges on JumpCloud-managed devices.");
+  console.log("  Supports bulk users via prompt or CSV, with Slack reporting and error rollback.");
+  console.log("");
+  console.log(chalk.bold("  Usage:"));
+  console.log("    jc-admin [emails...] [options]");
+  console.log("");
+  console.log(chalk.bold("  Options:"));
+  console.log("    emails...          Whitespace-separated list of valid user emails (enables auto-mode)");
+  console.log("    --dry-run          Preview what the script will do without making any changes");
+  console.log("    -h, --help         Show this help manual and exit");
+  console.log("");
+  console.log(chalk.bold("  Examples:"));
+  console.log("    jc-admin                                             # Interactive mode");
+  console.log("    jc-admin --dry-run                                   # Interactive dry-run mode");
+  console.log("    jc-admin user@company.com                            # Non-interactive mode for single user");
+  console.log("    jc-admin dev1@company.com dev2@company.com --dry-run # Dry run multiple users");
+  console.log("");
+  process.exit(0);
+}
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -538,6 +560,10 @@ async function stepSendReport(successful, skipped, notFound, durationHours, dryR
 // ─── Main ───────────────────────────────────────────────────────────────────────
 
 async function main() {
+  if (process.argv.includes("--help") || process.argv.includes("-h")) {
+    showHelp();
+  }
+
   printBanner();
 
   // Validate required env vars
