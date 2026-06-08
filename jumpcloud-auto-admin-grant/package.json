@@ -1,0 +1,22 @@
+{
+  "name": "auto-granted-admin-jc",
+  "version": "1.0.0",
+  "description": "CLI tool to grant temporary admin privileges on JumpCloud devices",
+  "main": "grant-admin.js",
+  "bin": {
+    "jc-admin": "./grant-admin.js"
+  },
+  "scripts": {
+    "start": "node grant-admin.js",
+    "dry-run": "node grant-admin.js --dry-run"
+  },
+  "keywords": ["jumpcloud", "admin", "automation"],
+  "license": "ISC",
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "cli-table3": "^0.6.5",
+    "csv-parse": "^5.6.0",
+    "dotenv": "^16.4.7",
+    "inquirer": "^8.2.6"
+  }
+}
