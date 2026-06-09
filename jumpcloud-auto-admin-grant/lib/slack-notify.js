@@ -169,7 +169,7 @@ async function sendReport({ successful, skipped, notFound, duration, dryRun }) {
         elements: [
           {
             type: "mrkdwn",
-            text: `CC: <@${ccUser}>`,
+            text: `CC: <!subteam^${ccUser}>`,
           },
         ],
       }
@@ -247,7 +247,7 @@ async function sendErrorReport({ errorMessage, rolledBack, rollbackFailed }) {
         elements: [
           {
             type: "mrkdwn",
-            text: `CC: <@${ccUser}> — Please review and take action if needed.`,
+            text: `CC: <!subteam^${ccUser}> — Please review and take action if needed.`,
           },
         ],
       }
@@ -291,7 +291,7 @@ async function sendApiKeyAlert(message) {
         elements: [
           {
             type: "mrkdwn",
-            text: `CC: <@${ccUser}>`,
+            text: `CC: <!subteam^${ccUser}>`,
           },
         ],
       }
