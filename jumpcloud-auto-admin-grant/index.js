@@ -29,6 +29,7 @@ function showTopLevelHelp() {
   console.log(chalk.bold("  Commands:"));
   console.log("    grant    Grant temporary admin/sudo privileges on devices");
   console.log("    reset    Reset user passwords");
+  console.log("    import   Import users from Google Workspace");
   console.log("");
   console.log(chalk.bold("  Usage:"));
   console.log("    jc-admin <command> [emails...] [options]");
@@ -37,11 +38,9 @@ function showTopLevelHelp() {
   console.log("    -h, --help    Show help (use with a command for command-specific help)");
   console.log("");
   console.log(chalk.bold("  Examples:"));
-  console.log("    jc-admin grant                                # Interactive grant mode");
+  console.log("    jc-admin import                               # Interactive import");
   console.log("    jc-admin grant user@company.com               # Quick grant for single user");
-  console.log("    jc-admin reset                                # Interactive password reset");
   console.log("    jc-admin reset user@company.com               # Reset with default password");
-  console.log('    jc-admin reset user@company.com --password "MyPass123!"');
   console.log("");
   process.exit(0);
 }
@@ -78,6 +77,11 @@ async function main() {
     case "reset": {
       const reset = require("./commands/reset");
       await reset.run();
+      break;
+    }
+    case "import": {
+      const importCmd = require("./commands/import");
+      await importCmd.run();
       break;
     }
     default: {

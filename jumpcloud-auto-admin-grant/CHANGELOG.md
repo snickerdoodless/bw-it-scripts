@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.0] - 2026-06-10
+
+### Added
+- **Import command** (`jc-admin import`) — Import users from Google Workspace into JumpCloud.
+  - Interactive mode, CSV bulk mode, and fully automated single/multi-user CLI modes.
+  - Automatically derives Name and Username from email address (e.g., `first.last@domain.com`).
+  - Automatically assigns users to domain-specific JumpCloud User Groups (configured via `IMPORT_DOMAIN_GROUPS` in `.env`).
+  - Automatically binds users to the Google Workspace directory in JumpCloud.
+  - Fully supports partial-failure rollback (deletes the partially imported user if a subsequent step like group assignment fails).
+  - Triggers user activation and sends an invitation email to their Alternate Email.
+  - Full Slack reporting and JSON audit logging.
+
 ## [2.0.0] - 2026-06-10
 
 ### Added

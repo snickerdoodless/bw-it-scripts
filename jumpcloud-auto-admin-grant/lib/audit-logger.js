@@ -127,11 +127,43 @@ function logPasswordReset({ email, displayName, userId, passwordUsed }) {
   });
 }
 
+/**
+ * Log a successful or failed import.
+ */
+function logImport({ email, displayName, userId, groups, directory, status, error }) {
+  appendLog({
+    action: "IMPORT",
+    email,
+    displayName,
+    userId,
+    groups,
+    directory,
+    status,
+    error: error || null,
+  });
+}
+
+/**
+ * Log a rollback of a failed import.
+ */
+function logImportRollback({ email, userId, deleteSuccess, error }) {
+  appendLog({
+    action: "IMPORT_ROLLBACK",
+    email,
+    userId,
+    deleteSuccess,
+    error: error || null,
+    status: deleteSuccess ? "ROLLED_BACK" : "ROLLBACK_FAILED",
+  });
+}
+
 module.exports = {
   logGrant,
   logSkipped,
   logRollback,
   logNotFound,
   logPasswordReset,
+  logImport,
+  logImportRollback,
   getLogFilePath,
 };

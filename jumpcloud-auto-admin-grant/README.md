@@ -18,6 +18,13 @@ Multi-command CLI for JumpCloud administration tasks.
 - 👥 **Bulk users** — same batch/single/CSV support as grant
 - 🔄 **Force change** — sets `password_never_expires: false` so users must change their password according to the 3-month policy
 
+### 📁 Import — Auto User Import
+- 📩 **Auto-derive** — Generates first name, last name, and username directly from the email (`first.last@domain.com`)
+- 🏷️ **Domain Routing** — Automatically assigns imported users to specific JumpCloud user groups based on their domain
+- 🏢 **G-Workspace Binding** — Binds the new user account directly to the Google Workspace directory
+- 📨 **Auto-Activation** — Sets the user to active and sends their welcome/activation email to their alternate email address
+- 🔄 **Rollback Protection** — If any step (group assignment, binding) fails, the created user is immediately deleted to avoid dirty state
+
 ### 🛠️ Shared Features
 - 🧪 **Dry-run mode** — preview everything without making changes
 - 📨 **Slack reporting** — sends formatted report to Slack channel with CC
@@ -53,6 +60,7 @@ Multi-command CLI for JumpCloud administration tasks.
    SLACK_CHANNEL=your-channel-id
    SLACK_CC_USER=your-user-id
    DEFAULT_RESET_PASSWORD=YourDefaultPassword123!
+   IMPORT_DOMAIN_GROUPS={"@company.com":["All Employees","Engineering Team"]}
    ```
 
 ## Usage
@@ -200,18 +208,106 @@ jc-admin reset --help
 ✨ Done! Password reset for 2 user(s).
 ```
 
+---
+
+### Import Command
+
+Import users from Google Workspace, automatically set their details, assign them to domain-specific groups, bind them to the Google Workspace directory, and send them an activation email.
+
+#### Interactive mode
+```bash
+jc-admin import
+```
+*(Add `-y` to skip the final confirmation prompts)*
+
+#### Auto Multi-User mode
+Specify emails up front, and fill in specific details via prompts:
+```bash
+jc-admin import john.doe@company.com jane@company.com
+```
+
+#### Auto Single-User mode (Full Auto)
+Specify all details via flags. Great for automation pipelines:
+```bash
+jc-admin import john.doe@company.com \
+  --alt-email "johndoe.personal@gmail.com" \
+  --title "Software Engineer" \
+  --department "Engineering"
+```
+
+#### CSV Bulk mode
+```bash
+jc-admin import --csv ./users.csv
+```
+
+#### Example session
+```
+📁 JumpCloud User Import Tool
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔑 Validating API key... OK ✓
+
+? How do you want to input users? 📝 Manual entry
+? Enter user emails (comma-separated): john.doe@company.com
+
+  Auto-derived for john.doe@company.com:
+  • Name: John Doe
+  • Username: john.doe
+? Alternate Email for john.doe: johndoe.personal@gmail.com
+? Job Title for john.doe: Software Engineer
+? Department for john.doe: Engineering
+
+? Enable dry-run mode? No
+
+🔍 Running pre-flight checks...
+   Checking john.doe@company.com ... new user ✓
+   Resolving JumpCloud user groups ... OK ✓
+   Locating Google Workspace directory ... OK (Google Workspace) ✓
+
+┌─────────────────────────┬──────────┬─────────────────────────────┐
+│ User                    │ Name     │ Groups to Assign            │
+├─────────────────────────┼──────────┼─────────────────────────────┤
+│ john.doe@company.com    │ John Doe │ All Employees               │
+│                         │          │ Engineering Team            │
+└─────────────────────────┴──────────┴─────────────────────────────┘
+
+? Proceed with importing 1 user(s)? Yes
+
+🚀 Importing users...
+  ▶ Processing john.doe@company.com ...
+     Creating user (staged) ... ✓
+     Assigning groups ... ✓
+     Binding to Google Workspace ... ✓
+     Activating user & sending invite ... ✓
+
+📨 Slack report sent to channel.
+📝 Audit log: logs/audit-2026-06-10.json
+
+✨ Done! Successfully imported 1 user(s).
+```
+
 ## CSV Format
 
-Create a CSV with an `email` column:
+Depending on the command, the tool supports different CSV templates.
 
+### Grant & Reset Commands
+Requires a simple CSV with an `email` column:
 ```csv
 email
 john@company.com
 jane@company.com
 bob@company.com
 ```
+*See `templates/users-template.csv` for an example.*
 
-See `templates/users-template.csv` for a template.
+### Import Command
+Requires an extended CSV with up to 4 columns (`email` is required, the rest are optional):
+```csv
+email,alternateEmail,jobTitle,department
+john.doe@company.com,johndoe.personal@gmail.com,Software Engineer,Engineering
+jane@company.com,,,
+```
+*See `templates/import-template.csv` for an example.*
 
 ## Error Handling
 
@@ -220,6 +316,13 @@ If a grant fails mid-batch, the script will:
 1. **Immediately stop** further grants
 2. **Revoke all previously granted** access in this batch
 3. **Send error report** to Slack with rollback status
+4. **Log everything** to audit file
+
+### Import Command
+If an import fails midway (e.g. user created but group assignment fails), the script will:
+1. **Rollback** by completely deleting the partially imported user from JumpCloud
+2. **Continue** sequentially with the remaining users
+3. **Report failures and rollbacks** in the summary and Slack report
 4. **Log everything** to audit file
 
 ### Reset Command
@@ -244,14 +347,16 @@ jumpcloud-admin-tools/
 ├── index.js              # CLI entry point & command router
 ├── commands/
 │   ├── grant.js          # Grant admin command handler
-│   └── reset.js          # Reset password command handler
+│   ├── reset.js          # Reset password command handler
+│   └── import.js         # User import command handler
 ├── lib/
 │   ├── jumpcloud-api.js  # JumpCloud API wrapper
 │   ├── slack-notify.js   # Slack webhook notifications
 │   ├── csv-handler.js    # CSV parsing
 │   └── audit-logger.js   # Local audit logging
 ├── templates/
-│   └── users-template.csv
+│   ├── users-template.csv
+│   └── import-template.csv
 ├── logs/                 # Auto-created daily audit logs
 ├── CHANGELOG.md
 └── README.md

@@ -285,6 +285,218 @@ async function resetPassword(userId, newPassword) {
   return { success: true };
 }
 
+/**
+ * Create a new user in JumpCloud in "staged" (inactive) state.
+ * The user will not receive any email until explicitly activated.
+ *
+ * @param {Object} userData
+ * @param {string} userData.username
+ * @param {string} userData.email
+ * @param {string} userData.firstname
+ * @param {string} userData.lastname
+ * @param {string} userData.alternateEmail
+ * @param {string} userData.jobTitle
+ * @param {string} userData.department
+ * @returns {{ id: string, username: string }}
+ */
+async function createStagedUser(userData) {
+  const payload = {
+    username: userData.username,
+    email: userData.email,
+    firstname: userData.firstname,
+    lastname: userData.lastname,
+    alternateEmail: userData.alternateEmail,
+    recoveryEmail: { address: userData.alternateEmail },
+    jobTitle: userData.jobTitle,
+    department: userData.department,
+    state: "STAGED",
+  };
+
+  const res = await apiRequest("POST", "/api/systemusers", payload);
+
+  if (res.statusCode < 200 || res.statusCode >= 300) {
+    const errorMsg =
+      res.body && res.body.message
+        ? res.body.message
+        : JSON.stringify(res.body);
+    throw new Error(
+      `Failed to create user ${userData.email}: HTTP ${res.statusCode} - ${errorMsg}`
+    );
+  }
+
+  return {
+    id: res.body._id,
+    username: res.body.username,
+  };
+}
+
+/**
+ * Delete a user from JumpCloud (used for rollback on import failure).
+ *
+ * @param {string} userId - JumpCloud User ID
+ */
+async function deleteUser(userId) {
+  const res = await apiRequest("DELETE", `/api/systemusers/${userId}`);
+
+  if (res.statusCode < 200 || res.statusCode >= 300) {
+    throw new Error(
+      `Failed to delete user ${userId}: HTTP ${res.statusCode}`
+    );
+  }
+
+  return true;
+}
+
+/**
+ * Find a JumpCloud user group by exact name.
+ * Returns: { id, name } or null if not found.
+ *
+ * @param {string} groupName - Exact group name to search for
+ */
+async function findGroupByName(groupName) {
+  const encodedName = encodeURIComponent(groupName);
+  const res = await apiRequest(
+    "GET",
+    `/api/v2/usergroups?filter=name:eq:${encodedName}&limit=1`
+  );
+
+  if (res.statusCode !== 200) {
+    throw new Error(
+      `Failed to search for group "${groupName}": HTTP ${res.statusCode}`
+    );
+  }
+
+  const groups = res.body || [];
+  if (groups.length === 0) {
+    return null;
+  }
+
+  return {
+    id: groups[0].id,
+    name: groups[0].name,
+  };
+}
+
+/**
+ * Add a user to a user group.
+ *
+ * @param {string} groupId - JumpCloud User Group ID
+ * @param {string} userId - JumpCloud User ID
+ */
+async function addUserToGroup(groupId, userId) {
+  const payload = {
+    id: userId,
+    op: "add",
+    type: "user",
+  };
+
+  const res = await apiRequest(
+    "POST",
+    `/api/v2/usergroups/${groupId}/members`,
+    payload
+  );
+
+  if (res.statusCode < 200 || res.statusCode >= 300) {
+    const errorMsg =
+      res.body && res.body.message
+        ? res.body.message
+        : JSON.stringify(res.body);
+    throw new Error(
+      `Failed to add user to group ${groupId}: HTTP ${res.statusCode} - ${errorMsg}`
+    );
+  }
+
+  return true;
+}
+
+/**
+ * Get the Google Workspace (G Suite) directory from JumpCloud.
+ * Returns: { id, name } or null if not found.
+ */
+async function getGSuiteDirectory() {
+  const res = await apiRequest("GET", "/api/v2/directories");
+
+  if (res.statusCode !== 200) {
+    throw new Error(
+      `Failed to list directories: HTTP ${res.statusCode}`
+    );
+  }
+
+  const directories = res.body || [];
+  const gsuite = directories.find((d) => d.type === "g_suite");
+
+  if (!gsuite) {
+    return null;
+  }
+
+  return {
+    id: gsuite.id,
+    name: gsuite.name || "Google Workspace",
+  };
+}
+
+/**
+ * Bind a user to a directory (e.g., Google Workspace).
+ *
+ * @param {string} userId - JumpCloud User ID
+ * @param {string} directoryId - JumpCloud Directory ID
+ */
+async function bindUserToDirectory(userId, directoryId) {
+  const payload = {
+    op: "add",
+    type: "g_suite",
+    id: directoryId,
+  };
+
+  const res = await apiRequest(
+    "POST",
+    `/api/v2/users/${userId}/associations`,
+    payload
+  );
+
+  if (res.statusCode < 200 || res.statusCode >= 300) {
+    const errorMsg =
+      res.body && res.body.message
+        ? res.body.message
+        : JSON.stringify(res.body);
+    throw new Error(
+      `Failed to bind user ${userId} to directory: HTTP ${res.statusCode} - ${errorMsg}`
+    );
+  }
+
+  return true;
+}
+
+/**
+ * Activate a staged user and send the invitation email.
+ * The invitation email is sent to the user's alternate email.
+ *
+ * @param {string} userId - JumpCloud User ID
+ */
+async function activateUser(userId) {
+  const payload = {
+    email: true,
+  };
+
+  const res = await apiRequest(
+    "POST",
+    `/api/systemusers/${userId}/state/activate`,
+    payload
+  );
+
+  if (res.statusCode < 200 || res.statusCode >= 300) {
+    const errorMsg =
+      res.body && res.body.message
+        ? res.body.message
+        : JSON.stringify(res.body);
+    throw new Error(
+      `Failed to activate user ${userId}: HTTP ${res.statusCode} - ${errorMsg}`
+    );
+  }
+
+  return true;
+}
+
 module.exports = {
   validateApiKey,
   findUserByEmail,
@@ -293,4 +505,12 @@ module.exports = {
   grantAdminAccess,
   revokeAdminAccess,
   resetPassword,
+  createStagedUser,
+  deleteUser,
+  findGroupByName,
+  addUserToGroup,
+  getGSuiteDirectory,
+  bindUserToDirectory,
+  activateUser,
 };
+

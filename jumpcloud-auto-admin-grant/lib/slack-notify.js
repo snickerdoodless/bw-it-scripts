@@ -414,9 +414,118 @@ async function sendResetReport({ successful, errors, notFound, password, dryRun 
   await sendSlackMessage(blocks, fallbackText);
 }
 
+/**
+ * Send a user import report to Slack.
+ *
+ * @param {Object} params
+ * @param {Array} params.successful - Array of { email, displayName, groups, directory }
+ * @param {Array} params.errors - Array of { email, error, rolledBack }
+ * @param {Array} params.skipped - Array of { email, reason }
+ * @param {boolean} params.dryRun - Whether this was a dry run
+ */
+async function sendImportReport({ successful, errors, skipped, dryRun }) {
+  const ccUser = process.env.SLACK_CC_USER;
+  const now = formatDateWIB(new Date().toISOString());
+
+  const modeLabel = dryRun ? "🧪 DRY RUN (no changes made)" : "✅ EXECUTED";
+
+  // Build the success list
+  let successText = "";
+  if (successful.length > 0) {
+    successText = successful
+      .map((s) => `• ${s.email} (${s.displayName}) — Groups: ${s.groups.join(", ") || "None"}`)
+      .join("\n");
+  } else {
+    successText = "• None";
+  }
+
+  // Build the errors list
+  let errorsText = "";
+  if (errors && errors.length > 0) {
+    errorsText = errors
+      .map((e) => `• ${e.email} — Error: ${e.error} (Rolled back: ${e.rolledBack ? "Yes" : "No/Failed"})`)
+      .join("\n");
+  }
+
+  // Build the skipped list
+  let skippedText = "";
+  if (skipped && skipped.length > 0) {
+    skippedText = skipped.map((e) => `• ${e.email} (${e.reason})`).join("\n");
+  }
+
+  const blocks = [
+    {
+      type: "header",
+      text: {
+        type: "plain_text",
+        text: "📁 JumpCloud User Import Report",
+        emoji: true,
+      },
+    },
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: [
+          `*Mode:* ${modeLabel}`,
+          `*Date:* ${now}`,
+          `*Total Processed:* ${successful.length + (errors ? errors.length : 0) + (skipped ? skipped.length : 0)}`,
+        ].join("\n"),
+      },
+    },
+    { type: "divider" },
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `*✅ Successful Imports:*\n${successText}`,
+      },
+    },
+  ];
+
+  if (errors && errors.length > 0) {
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `*❌ Failed Imports:*\n${errorsText}`,
+      },
+    });
+  }
+
+  if (skipped && skipped.length > 0) {
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `*⏭️ Skipped Users:*\n${skippedText}`,
+      },
+    });
+  }
+
+  if (ccUser) {
+    blocks.push(
+      { type: "divider" },
+      {
+        type: "context",
+        elements: [
+          {
+            type: "mrkdwn",
+            text: `CC: <!subteam^${ccUser}>`,
+          },
+        ],
+      }
+    );
+  }
+
+  const fallbackText = `JumpCloud Import Report — ${successful.length} successful, ${(errors || []).length} failed, ${(skipped || []).length} skipped`;
+  await sendSlackMessage(blocks, fallbackText);
+}
+
 module.exports = {
   sendReport,
   sendErrorReport,
   sendApiKeyAlert,
   sendResetReport,
+  sendImportReport,
 };

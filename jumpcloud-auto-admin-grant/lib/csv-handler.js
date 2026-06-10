@@ -92,7 +92,91 @@ function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+/**
+ * Derived user details from an email address (first.last@domain).
+ * Sets lastname to "-" if no dot in the prefix.
+ */
+function deriveUserDetailsFromEmail(email) {
+  const prefix = email.split("@")[0] || "";
+  const parts = prefix.split(".");
+  const firstname = parts[0]
+    ? parts[0].charAt(0).toUpperCase() + parts[0].slice(1)
+    : "";
+  let lastname = "-";
+  if (parts.length > 1) {
+    lastname = parts.slice(1).join(" ");
+    lastname = lastname.charAt(0).toUpperCase() + lastname.slice(1);
+  }
+  return {
+    username: prefix,
+    firstname,
+    lastname,
+  };
+}
+
+/**
+ * Parse a CSV file for importing users.
+ * Expects a CSV with headers: email, alternateEmail, jobTitle, department
+ *
+ * @param {string} filePath - Path to the CSV file
+ * @returns {Object[]} - Array of user objects
+ */
+function parseImportCSV(filePath) {
+  const resolvedPath = path.resolve(filePath);
+  if (!fs.existsSync(resolvedPath)) {
+    throw new Error(`CSV file not found: ${resolvedPath}`);
+  }
+
+  const content = fs.readFileSync(resolvedPath, "utf-8").trim();
+  if (!content) {
+    throw new Error("CSV file is empty");
+  }
+
+  const records = parse(content, {
+    columns: true,
+    skip_empty_lines: true,
+    trim: true,
+  });
+
+  const users = [];
+
+  for (const record of records) {
+    const emailKey = Object.keys(record).find((k) => k.toLowerCase() === "email");
+    if (!emailKey || !record[emailKey]) continue;
+
+    const email = record[emailKey].trim().toLowerCase();
+    if (!isValidEmail(email)) {
+      console.warn(`WARNING: Skipping invalid email: ${email}`);
+      continue;
+    }
+
+    const altEmailKey = Object.keys(record).find((k) => k.toLowerCase().replace(/[^a-z]/g, "") === "alternateemail");
+    const jobTitleKey = Object.keys(record).find((k) => k.toLowerCase().replace(/[^a-z]/g, "") === "jobtitle");
+    const departmentKey = Object.keys(record).find((k) => k.toLowerCase() === "department");
+
+    const derived = deriveUserDetailsFromEmail(email);
+
+    users.push({
+      email,
+      alternateEmail: altEmailKey && record[altEmailKey] ? record[altEmailKey].trim() : "",
+      jobTitle: jobTitleKey && record[jobTitleKey] ? record[jobTitleKey].trim() : "",
+      department: departmentKey && record[departmentKey] ? record[departmentKey].trim() : "",
+      username: derived.username,
+      firstname: derived.firstname,
+      lastname: derived.lastname,
+    });
+  }
+
+  if (users.length === 0) {
+    throw new Error("No valid user records found in the CSV. Ensure there is an 'email' column.");
+  }
+
+  return users;
+}
+
 module.exports = {
   parseCSV,
+  parseImportCSV,
   isValidEmail,
+  deriveUserDetailsFromEmail,
 };
