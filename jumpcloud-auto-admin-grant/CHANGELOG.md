@@ -2,6 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0] - 2026-06-10
+
+### Added
+- **Multi-command CLI architecture** — the tool now uses subcommands: `jc-admin grant` and `jc-admin reset`.
+- **Password Reset command** (`jc-admin reset`) — reset user passwords in batch or single mode.
+  - Supports batch (CSV or comma-separated) and single user modes.
+  - Default password configurable via `DEFAULT_RESET_PASSWORD` in `.env`.
+  - Custom password via `--password "YourPassword"` flag.
+  - Sets `password_never_expires: false` to enforce the organizational 3-month expiration policy.
+  - Dry-run mode support (`--dry-run`).
+  - Slack reporting with masked password display.
+  - Audit logging (never logs actual passwords, only "default" or "custom").
+- **New entry point** (`index.js`) — command router that dispatches to `commands/grant.js` or `commands/reset.js`.
+- **Interactive mode** for both commands — run `jc-admin grant` or `jc-admin reset` without arguments for interactive prompts.
+- **Per-command help** — `jc-admin grant --help` and `jc-admin reset --help` for command-specific usage.
+
+### Changed
+- **BREAKING:** CLI syntax changed from `jc-admin [emails...]` to `jc-admin grant [emails...]`. Users must specify the subcommand.
+- Project renamed from `auto-granted-admin-jc` to `jc-admin-tools`.
+- Version bumped to `2.0.0`.
+- `package.json` bin entry now points to `index.js` instead of `grant-admin.js`.
+- Running `jc-admin` without a subcommand now shows the top-level help menu.
+
+### Removed
+- `grant-admin.js` — logic moved to `commands/grant.js` and routed via `index.js`.
+
+### Fixed
+- Fixed `MODULE_NOT_FOUND` error (`Cannot find module '...grant-admin.js'`) when upgrading from `v1.0.1` by requiring re-running `npm link` to update the global executable path to the new `index.js`.
+
+### Migration
+- Run `npm unlink -g` then `npm link` to update the global `jc-admin` command.
+- Add `DEFAULT_RESET_PASSWORD` to your `.env` file (see `.env.example`).
+
 ## [1.0.1] - 2026-06-08
 
 ### Added

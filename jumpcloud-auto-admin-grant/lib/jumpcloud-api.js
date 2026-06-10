@@ -256,6 +256,35 @@ async function revokeAdminAccess(accessId) {
   return true;
 }
 
+/**
+ * Reset a user's password.
+ * Sets password_never_expires to false to enforce the directory's password expiration policy (e.g. 90 days).
+ *
+ * @param {string} userId - JumpCloud User ID
+ * @param {string} newPassword - The new password to set
+ * @returns {{ success: boolean }}
+ */
+async function resetPassword(userId, newPassword) {
+  const payload = {
+    password: newPassword,
+    password_never_expires: false,
+  };
+
+  const res = await apiRequest("PUT", `/api/systemusers/${userId}`, payload);
+
+  if (res.statusCode < 200 || res.statusCode >= 300) {
+    const errorMsg =
+      res.body && res.body.message
+        ? res.body.message
+        : JSON.stringify(res.body);
+    throw new Error(
+      `Failed to reset password for user ${userId}: HTTP ${res.statusCode} - ${errorMsg}`
+    );
+  }
+
+  return { success: true };
+}
+
 module.exports = {
   validateApiKey,
   findUserByEmail,
@@ -263,4 +292,5 @@ module.exports = {
   getDeviceDetails,
   grantAdminAccess,
   revokeAdminAccess,
+  resetPassword,
 };

@@ -1,27 +1,23 @@
-#!/usr/bin/env node
-
 /**
- * JumpCloud Auto-Grant Admin Script
+ * JumpCloud Admin Tools — Grant Command
  *
  * Grants temporary admin/sudo privileges on JumpCloud-managed devices.
  * Supports bulk users via prompt or CSV, with Slack reporting and error rollback.
  *
  * Usage:
- *   node grant-admin.js            # Interactive mode
- *   node grant-admin.js --dry-run  # Preview only, no changes
+ *   jc-admin grant                         # Interactive mode
+ *   jc-admin grant user@company.com        # Auto mode
+ *   jc-admin grant --dry-run               # Preview only
  */
 
-const path = require("path");
-require("dotenv").config({ path: path.join(__dirname, ".env") });
-
-const inquirer = require("inquirer");
 const chalk = require("chalk");
+const inquirer = require("inquirer");
 const Table = require("cli-table3");
 
-const jc = require("./lib/jumpcloud-api");
-const slack = require("./lib/slack-notify");
-const csv = require("./lib/csv-handler");
-const audit = require("./lib/audit-logger");
+const jc = require("../lib/jumpcloud-api");
+const slack = require("../lib/slack-notify");
+const csv = require("../lib/csv-handler");
+const audit = require("../lib/audit-logger");
 
 // ─── Duration Options ──────────────────────────────────────────────────────────
 
@@ -86,7 +82,7 @@ function showHelp() {
   console.log("  Supports bulk users via prompt or CSV, with Slack reporting and error rollback.");
   console.log("");
   console.log(chalk.bold("  Usage:"));
-  console.log("    jc-admin [emails...] [options]");
+  console.log("    jc-admin grant [emails...] [options]");
   console.log("");
   console.log(chalk.bold("  Options:"));
   console.log("    emails...          Whitespace-separated list of valid user emails (enables auto-mode)");
@@ -94,10 +90,10 @@ function showHelp() {
   console.log("    -h, --help         Show this help manual and exit");
   console.log("");
   console.log(chalk.bold("  Examples:"));
-  console.log("    jc-admin                                             # Interactive mode");
-  console.log("    jc-admin --dry-run                                   # Interactive dry-run mode");
-  console.log("    jc-admin user@company.com                            # Non-interactive mode for single user");
-  console.log("    jc-admin dev1@company.com dev2@company.com --dry-run # Dry run multiple users");
+  console.log("    jc-admin grant                                             # Interactive mode");
+  console.log("    jc-admin grant --dry-run                                   # Interactive dry-run mode");
+  console.log("    jc-admin grant user@company.com                            # Non-interactive for single user");
+  console.log("    jc-admin grant dev1@company.com dev2@company.com --dry-run # Dry run multiple users");
   console.log("");
   process.exit(0);
 }
@@ -118,7 +114,6 @@ async function stepValidateApiKey() {
     console.log(chalk.red(`     ${result.message}`));
     console.log("");
 
-    // Try to send Slack alert about expired key
     try {
       await slack.sendApiKeyAlert(
         `❌ API key is expired or invalid. Script cannot run.\n${result.message}`
@@ -197,7 +192,6 @@ async function stepGetEmails() {
     emails = csv.parseCSV(csvPath);
   }
 
-  // Remove duplicates
   emails = [...new Set(emails)];
 
   console.log(chalk.gray(`     Found ${emails.length} unique email(s).`));
@@ -225,7 +219,6 @@ async function stepChooseDuration() {
 // ─── Step 4: Choose Dry Run ─────────────────────────────────────────────────────
 
 async function stepCheckDryRun() {
-  // If --dry-run flag is passed, skip the prompt
   if (isDryRun()) {
     console.log(chalk.yellow("  🧪 Dry-run mode enabled via --dry-run flag"));
     console.log("");
@@ -256,8 +249,8 @@ async function stepLookupUsersAndDevices(emails) {
   console.log(chalk.bold("  🔍 Looking up users..."));
 
   const results = {
-    found: [], // { email, user, onlineDevices: [], offlineDevices: [] }
-    notFound: [], // emails
+    found: [],
+    notFound: [],
   };
 
   for (const email of emails) {
@@ -275,7 +268,6 @@ async function stepLookupUsersAndDevices(emails) {
 
       console.log(chalk.green(`${user.displayName} ✓`));
 
-      // Get devices bound to this user
       const deviceIds = await jc.getUserDevices(user.id);
 
       if (deviceIds.length === 0) {
@@ -289,8 +281,6 @@ async function stepLookupUsersAndDevices(emails) {
 
       for (const deviceId of deviceIds) {
         const device = await jc.getDeviceDetails(deviceId);
-        
-        // Grant all devices regardless of online/offline status
         onlineDevices.push(device);
         console.log(chalk.green(`       ✅ ${device.displayName} (${device.active ? "online" : "offline"})`));
       }
@@ -306,7 +296,6 @@ async function stepLookupUsersAndDevices(emails) {
       results.notFound.push(email);
     }
 
-    // Small delay to avoid API rate limits
     await sleep(200);
   }
 
@@ -317,7 +306,6 @@ async function stepLookupUsersAndDevices(emails) {
 // ─── Step 6: Show Summary & Confirm ─────────────────────────────────────────────
 
 async function stepConfirm(lookupResults, durationHours, dryRun, expiryISO, isAutoMode) {
-  // Count total grants
   let totalGrants = 0;
   for (const r of lookupResults.found) {
     totalGrants += r.onlineDevices.length;
@@ -330,7 +318,6 @@ async function stepConfirm(lookupResults, durationHours, dryRun, expiryISO, isAu
     return false;
   }
 
-  // Display summary table
   const table = new Table({
     head: [
       chalk.white.bold("User"),
@@ -370,7 +357,6 @@ async function stepConfirm(lookupResults, durationHours, dryRun, expiryISO, isAu
     return true;
   }
 
-  // Confirm
   const { proceed } = await inquirer.prompt([
     {
       type: "confirm",
@@ -393,13 +379,12 @@ async function stepExecuteGrants(lookupResults, durationHours, expiryISO) {
     (d) => d.value === durationHours
   ).name;
 
-  const successful = []; // Tracks grants for rollback + reporting
-  const skipped = []; // Offline devices
+  const successful = [];
+  const skipped = [];
   const errors = [];
 
   try {
     for (const r of lookupResults.found) {
-      // Log skipped (offline) devices
       for (const device of r.offlineDevices) {
         skipped.push({
           email: r.email,
@@ -414,7 +399,6 @@ async function stepExecuteGrants(lookupResults, durationHours, expiryISO) {
         });
       }
 
-      // Grant on online devices
       for (const device of r.onlineDevices) {
         process.stdout.write(
           chalk.gray(`     ${r.email} → ${device.displayName} ... `)
@@ -429,7 +413,6 @@ async function stepExecuteGrants(lookupResults, durationHours, expiryISO) {
 
           if (result.alreadyGranted) {
             console.log(chalk.yellow("already granted (skipped)"));
-            // Do not track as successful or error to avoid Slack spam
           } else {
             successful.push({
               email: r.email,
@@ -454,8 +437,6 @@ async function stepExecuteGrants(lookupResults, durationHours, expiryISO) {
           }
         } catch (grantErr) {
           console.log(chalk.red(`FAILED: ${grantErr.message}`));
-
-          // ── ERROR: Start rollback ──
           throw grantErr;
         }
 
@@ -463,7 +444,6 @@ async function stepExecuteGrants(lookupResults, durationHours, expiryISO) {
       }
     }
   } catch (err) {
-    // ── ROLLBACK all successful grants ──
     console.log("");
     console.log(chalk.red.bold("  ❌ Error occurred! Rolling back grants..."));
 
@@ -511,7 +491,6 @@ async function stepExecuteGrants(lookupResults, durationHours, expiryISO) {
       }
     }
 
-    // Send error report to Slack
     console.log("");
     try {
       await slack.sendErrorReport({
@@ -557,9 +536,9 @@ async function stepSendReport(successful, skipped, notFound, durationHours, dryR
   }
 }
 
-// ─── Main ───────────────────────────────────────────────────────────────────────
+// ─── Main Run Function ──────────────────────────────────────────────────────────
 
-async function main() {
+async function run() {
   if (process.argv.includes("--help") || process.argv.includes("-h")) {
     showHelp();
   }
@@ -606,7 +585,6 @@ async function main() {
   const proceed = await stepConfirm(lookupResults, durationHours, dryRun, expiryISO, isAutoMode);
 
   if (!proceed) {
-    // If dry run, still send report for visibility
     if (dryRun) {
       const dryRunSuccessful = [];
       const dryRunSkipped = [];
@@ -675,12 +653,4 @@ async function main() {
   console.log("");
 }
 
-// ─── Run ────────────────────────────────────────────────────────────────────────
-
-main().catch((err) => {
-  console.error("");
-  console.error(chalk.red(`  ❌ Unexpected error: ${err.message}`));
-  console.error(chalk.gray(`     ${err.stack}`));
-  console.error("");
-  process.exit(1);
-});
+module.exports = { run };

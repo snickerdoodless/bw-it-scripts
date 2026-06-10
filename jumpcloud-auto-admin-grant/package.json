@@ -1,16 +1,17 @@
 {
-  "name": "auto-granted-admin-jc",
-  "version": "1.0.1",
-  "description": "CLI tool to grant temporary admin privileges on JumpCloud devices",
-  "main": "grant-admin.js",
+  "name": "jc-admin-tools",
+  "version": "2.0.0",
+  "description": "Multi-command CLI tool for JumpCloud administration (admin grants, password resets)",
+  "main": "index.js",
   "bin": {
-    "jc-admin": "./grant-admin.js"
+    "jc-admin": "./index.js"
   },
   "scripts": {
-    "start": "node grant-admin.js",
-    "dry-run": "node grant-admin.js --dry-run"
+    "start": "node index.js",
+    "dry-run:grant": "node index.js grant --dry-run",
+    "dry-run:reset": "node index.js reset --dry-run"
   },
-  "keywords": ["jumpcloud", "admin", "automation"],
+  "keywords": ["jumpcloud", "admin", "automation", "password-reset"],
   "license": "ISC",
   "dependencies": {
     "chalk": "^4.1.2",

@@ -112,10 +112,26 @@ function logNotFound({ email }) {
   });
 }
 
+/**
+ * Log a successful password reset.
+ * Never logs the actual password — only whether default or custom was used.
+ */
+function logPasswordReset({ email, displayName, userId, passwordUsed }) {
+  appendLog({
+    action: "PASSWORD_RESET",
+    email,
+    displayName,
+    userId,
+    passwordUsed,
+    status: "SUCCESS",
+  });
+}
+
 module.exports = {
   logGrant,
   logSkipped,
   logRollback,
   logNotFound,
+  logPasswordReset,
   getLogFilePath,
 };

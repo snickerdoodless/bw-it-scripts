@@ -301,8 +301,122 @@ async function sendApiKeyAlert(message) {
   await sendSlackMessage(blocks, `🔑 JumpCloud API Key Alert: ${message}`);
 }
 
+/**
+ * Send a password reset report to Slack.
+ *
+ * @param {Object} params
+ * @param {Array} params.successful - Array of { email, displayName, userId }
+ * @param {Array} params.errors - Array of { email, displayName, error }
+ * @param {Array} params.notFound - Array of emails not found in JumpCloud
+ * @param {string} params.password - Masked password string
+ * @param {boolean} params.dryRun - Whether this was a dry run
+ */
+async function sendResetReport({ successful, errors, notFound, password, dryRun }) {
+  const ccUser = process.env.SLACK_CC_USER;
+  const now = formatDateWIB(new Date().toISOString());
+
+  const modeLabel = dryRun ? "🧪 DRY RUN (no changes made)" : "✅ EXECUTED";
+
+  // Build the success list
+  let successText = "";
+  if (successful.length > 0) {
+    successText = successful
+      .map((s) => `• ${s.email} (${s.displayName})`)
+      .join("\n");
+  } else {
+    successText = "• None";
+  }
+
+  // Build the errors list
+  let errorsText = "";
+  if (errors && errors.length > 0) {
+    errorsText = errors
+      .map((e) => `• ${e.email} — ${e.error}`)
+      .join("\n");
+  }
+
+  // Build the not found list
+  let notFoundText = "";
+  if (notFound.length > 0) {
+    notFoundText = notFound.map((e) => `• ${e}`).join("\n");
+  }
+
+  const blocks = [
+    {
+      type: "header",
+      text: {
+        type: "plain_text",
+        text: "🔑 JumpCloud Password Reset Report",
+        emoji: true,
+      },
+    },
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: [
+          `*Mode:* ${modeLabel}`,
+          `*Date:* ${now}`,
+          `*Password:* \`${password}\``,
+          `*Total Resets:* ${successful.length} user(s)`,
+        ].join("\n"),
+      },
+    },
+    { type: "divider" },
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `*✅ Successful Resets:*\n${successText}`,
+      },
+    },
+  ];
+
+  // Add errors section if any
+  if (errors && errors.length > 0) {
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `*❌ Failed Resets:*\n${errorsText}`,
+      },
+    });
+  }
+
+  // Add not-found section if any
+  if (notFound.length > 0) {
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `*❓ Users Not Found in JumpCloud:*\n${notFoundText}`,
+      },
+    });
+  }
+
+  // Add CC
+  if (ccUser) {
+    blocks.push(
+      { type: "divider" },
+      {
+        type: "context",
+        elements: [
+          {
+            type: "mrkdwn",
+            text: `CC: <!subteam^${ccUser}>`,
+          },
+        ],
+      }
+    );
+  }
+
+  const fallbackText = `JumpCloud Password Reset Report — ${successful.length} resets${errors && errors.length > 0 ? `, ${errors.length} failed` : ""}`;
+  await sendSlackMessage(blocks, fallbackText);
+}
+
 module.exports = {
   sendReport,
   sendErrorReport,
   sendApiKeyAlert,
+  sendResetReport,
 };
