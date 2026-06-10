@@ -49,7 +49,7 @@ function getCliEmails() {
       i++; // Skip flag and its value
       continue;
     }
-    if (args[i].startsWith('--')) continue; // Skip standalone flags like --dry-run
+    if (args[i].startsWith('-')) continue; // Skip standalone flags like --dry-run or -y
     cleanArgs.push(args[i]);
   }
 
