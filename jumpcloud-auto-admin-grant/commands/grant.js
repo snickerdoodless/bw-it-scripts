@@ -79,7 +79,7 @@ function printBanner() {
 function showHelp() {
   printBanner();
   console.log("  Grants temporary admin/sudo privileges on JumpCloud-managed devices.");
-  console.log("  Supports bulk users via prompt or CSV, with Slack reporting and error rollback.");
+  console.log("  Supports bulk users via prompt or CSV/XLSX, with Slack reporting and error rollback.");
   console.log("");
   console.log(chalk.bold("  Usage:"));
   console.log("    jc-admin grant [emails...] [options]");
@@ -142,7 +142,7 @@ async function stepGetEmails() {
       message: "How do you want to input users?",
       choices: [
         { name: "📝 Manual entry (type/paste emails)", value: "manual" },
-        { name: "📄 CSV file", value: "csv" },
+        { name: "📄 CSV or XLSX file", value: "csv" },
       ],
     },
   ]);
@@ -176,11 +176,11 @@ async function stepGetEmails() {
       {
         type: "input",
         name: "csvPath",
-        message: "Enter path to CSV file:",
+        message: "Enter path to CSV or XLSX file:",
         default: "./templates/users-template.csv",
         validate: (input) => {
           try {
-            csv.parseCSV(input);
+            csv.parseFile(input);
             return true;
           } catch (err) {
             return err.message;
@@ -189,7 +189,7 @@ async function stepGetEmails() {
       },
     ]);
 
-    emails = csv.parseCSV(csvPath);
+    emails = csv.parseFile(csvPath);
   }
 
   emails = [...new Set(emails)];

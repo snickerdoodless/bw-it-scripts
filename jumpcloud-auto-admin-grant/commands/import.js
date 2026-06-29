@@ -103,14 +103,14 @@ function printBanner() {
 function showHelp() {
   printBanner();
   console.log("  Imports users into JumpCloud and assigns them to groups based on domain.");
-  console.log("  Supports interactive input, CSV file, or auto-mode via CLI arguments.");
+  console.log("  Supports interactive input, CSV/XLSX file, or auto-mode via CLI arguments.");
   console.log("");
   console.log(chalk.bold("  Usage:"));
   console.log("    jc-admin import [emails...] [options]");
   console.log("");
   console.log(chalk.bold("  Options:"));
   console.log("    emails...                  Valid user emails (triggers auto-mode)");
-  console.log('    --csv <path>               Import users from a CSV file');
+  console.log('    --csv <path>               Import users from a CSV or XLSX file');
   console.log('    --alt-email <email>        Set alternate email (for single-user auto mode)');
   console.log('    --title <title>            Set job title (for single-user auto mode)');
   console.log('    --department <dept>        Set department (for single-user auto mode)');
@@ -118,9 +118,14 @@ function showHelp() {
   console.log("    -y, --yes                  Skip all confirmation prompts (auto-approve)");
   console.log("    -h, --help                 Show this help manual and exit");
   console.log("");
+  console.log(chalk.bold("  File formats supported:"));
+  console.log("    .csv     Comma-separated values (email, alternateEmail, jobTitle, department)");
+  console.log("    .xlsx    Excel spreadsheet (same columns, first sheet is used)");
+  console.log("");
   console.log(chalk.bold("  Examples:"));
   console.log("    jc-admin import                                            # Interactive mode");
-  console.log("    jc-admin import --csv users.csv                            # Bulk from CSV mode");
+  console.log("    jc-admin import --csv users.csv                            # Bulk from CSV");
+  console.log("    jc-admin import --csv users.xlsx                           # Bulk from XLSX");
   console.log("    jc-admin import user@company.com jane@company.com          # Multi auto mode");
   console.log('    jc-admin import user@company.com --title "Engineer"        # Single auto mode');
   console.log("");
@@ -166,14 +171,14 @@ async function stepValidateApiKey() {
 async function stepPrepareUsers(cliEmails, domainGroups) {
   let users = [];
 
-  // Check CSV via flag
+  // Check CSV/XLSX via flag
   if (hasCsvFlag()) {
-    const csvPath = getCsvPathFromArgs() || "./templates/import-template.csv";
-    console.log(chalk.cyan(`  📄 Importing via CSV: ${csvPath}`));
+    const filePath = getCsvPathFromArgs() || "./templates/import-template.csv";
+    console.log(chalk.cyan(`  📄 Importing via file: ${filePath}`));
     try {
-      users = csv.parseImportCSV(csvPath);
+      users = csv.parseImportFile(filePath);
     } catch (err) {
-      console.log(chalk.red(`  ❌ CSV Error: ${err.message}`));
+      console.log(chalk.red(`  ❌ File Error: ${err.message}`));
       process.exit(1);
     }
     return checkDomainsAndReturn(users, domainGroups);
@@ -216,18 +221,28 @@ async function stepPrepareUsers(cliEmails, domainGroups) {
     ]);
 
     if (inputMethod === "csv") {
-      const { csvPath } = await inquirer.prompt([
+      const { filePath } = await inquirer.prompt([
         {
           type: "input",
-          name: "csvPath",
-          message: "Enter path to CSV file:",
+          name: "filePath",
+          message: "Enter path to CSV or XLSX file:",
           default: "./templates/import-template.csv",
+          validate: (input) => {
+            const trimmed = input.trim();
+            if (!trimmed) return "Please enter a file path";
+            try {
+              csv.parseImportFile(trimmed);
+              return true;
+            } catch (err) {
+              return `❌ ${err.message}`;
+            }
+          },
         },
       ]);
       try {
-        users = csv.parseImportCSV(csvPath);
+        users = csv.parseImportFile(filePath.trim());
       } catch (err) {
-        console.log(chalk.red(`  ❌ CSV Error: ${err.message}`));
+        console.log(chalk.red(`  ❌ File Error: ${err.message}`));
         process.exit(1);
       }
       return checkDomainsAndReturn(users, domainGroups);

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.2.0] - 2026-06-29
+
+### Added
+- **XLSX Support** — The tool now supports importing and reading from Excel (`.xlsx` or `.xls`) files in addition to CSV files across all commands containing bulk operations (via `--csv` flag).
+- Auto-detection for XLSX vs CSV extensions when parsing import files.
+
 ## [2.1.0] - 2026-06-10
 
 ### Added

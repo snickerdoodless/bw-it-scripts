@@ -1,6 +1,6 @@
 {
   "name": "jc-admin-tools",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Multi-command CLI tool for JumpCloud administration (admin grants, password resets, user imports)",
   "main": "index.js",
   "bin": {
@@ -12,13 +12,20 @@
     "dry-run:reset": "node index.js reset --dry-run",
     "dry-run:import": "node index.js import --dry-run"
   },
-  "keywords": ["jumpcloud", "admin", "automation", "password-reset", "import"],
+  "keywords": [
+    "jumpcloud",
+    "admin",
+    "automation",
+    "password-reset",
+    "import"
+  ],
   "license": "ISC",
   "dependencies": {
     "chalk": "^4.1.2",
     "cli-table3": "^0.6.5",
     "csv-parse": "^5.6.0",
     "dotenv": "^16.4.7",
-    "inquirer": "^8.2.6"
+    "inquirer": "^8.2.6",
+    "xlsx": "^0.18.5"
   }
 }

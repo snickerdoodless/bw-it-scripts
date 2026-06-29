@@ -6,7 +6,7 @@ Multi-command CLI for JumpCloud administration tasks.
 
 ### 🔐 Grant — Temporary Admin Access
 - ⏱️ **Configurable duration** — default 24h, options: 1h, 4h, 8h, 12h, 24h, 48h, 72h
-- 👥 **Bulk users** — manual entry (comma-separated emails), CSV file, or passed as CLI arguments
+- 👥 **Bulk users** — manual entry (comma-separated emails), CSV/XLSX file, or passed as CLI arguments
 - 🔍 **All Device Support** — grants admin on **all** bound devices (online and offline)
 - ⏭️ **Graceful Skip** — safely skips devices that already have sudo privileges without spamming Slack
 - ⏳ **Auto-expiry** — JumpCloud automatically revokes admin when the timer expires
@@ -15,7 +15,7 @@ Multi-command CLI for JumpCloud administration tasks.
 ### 🔑 Reset — Password Reset
 - 🔒 **Default password** — configurable via `DEFAULT_RESET_PASSWORD` in `.env`
 - ✏️ **Custom password** — override via `--password "YourPassword"` or interactive prompt
-- 👥 **Bulk users** — same batch/single/CSV support as grant
+- 👥 **Bulk users** — same batch/single/CSV/XLSX support as grant
 - 🔄 **Force change** — sets `password_never_expires: false` so users must change their password according to the 3-month policy
 
 ### 📁 Import — Auto User Import
@@ -235,9 +235,10 @@ jc-admin import john.doe@company.com \
   --department "Engineering"
 ```
 
-#### CSV Bulk mode
+#### File Bulk mode (CSV/XLSX)
 ```bash
 jc-admin import --csv ./users.csv
+jc-admin import --csv ./users.xlsx
 ```
 
 #### Example session
@@ -286,12 +287,12 @@ jc-admin import --csv ./users.csv
 ✨ Done! Successfully imported 1 user(s).
 ```
 
-## CSV Format
+## File Format (CSV/XLSX)
 
-Depending on the command, the tool supports different CSV templates.
+Depending on the command, the tool supports different CSV or XLSX templates. XLSX files must have the data on the first sheet with a header row matching the CSV format.
 
 ### Grant & Reset Commands
-Requires a simple CSV with an `email` column:
+Requires a simple CSV/XLSX with an `email` column:
 ```csv
 email
 john@company.com
@@ -301,7 +302,7 @@ bob@company.com
 *See `templates/users-template.csv` for an example.*
 
 ### Import Command
-Requires an extended CSV with up to 4 columns (`email` is required, the rest are optional):
+Requires an extended CSV/XLSX with up to 4 columns (`email` is required, the rest are optional):
 ```csv
 email,alternateEmail,jobTitle,department
 john.doe@company.com,johndoe.personal@gmail.com,Software Engineer,Engineering

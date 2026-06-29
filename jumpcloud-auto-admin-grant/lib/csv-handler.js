@@ -1,11 +1,12 @@
 /**
  * CSV Handler Module
- * Parses CSV files to extract email addresses.
+ * Parses CSV and XLSX files to extract email addresses.
  */
 
 const fs = require("fs");
 const path = require("path");
 const { parse } = require("csv-parse/sync");
+const XLSX = require("xlsx");
 
 /**
  * Parse a CSV file and extract email addresses.
@@ -174,9 +175,122 @@ function parseImportCSV(filePath) {
   return users;
 }
 
+/**
+ * Parse an XLSX file and extract email addresses (first sheet, "email" column).
+ *
+ * @param {string} filePath - Path to the XLSX file
+ * @returns {string[]} - Array of email addresses
+ */
+function parseXLSX(filePath) {
+  const resolvedPath = path.resolve(filePath);
+  if (!fs.existsSync(resolvedPath)) {
+    throw new Error(`File not found: ${resolvedPath}`);
+  }
+
+  const workbook = XLSX.readFile(resolvedPath);
+  const sheetName = workbook.SheetNames[0];
+  if (!sheetName) throw new Error("XLSX file has no sheets");
+
+  const records = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" });
+
+  const emails = [];
+  for (const record of records) {
+    const emailKey = Object.keys(record).find((k) => k.toLowerCase().trim() === "email");
+    if (emailKey && record[emailKey]) {
+      const email = String(record[emailKey]).trim().toLowerCase();
+      if (isValidEmail(email)) emails.push(email);
+    }
+  }
+
+  const unique = [...new Set(emails)];
+  if (unique.length === 0) throw new Error("No valid email addresses found in the XLSX file. Make sure there is an 'email' column.");
+  return unique;
+}
+
+/**
+ * Parse an XLSX file for importing users.
+ * Reads the first sheet; expects columns: email, alternateEmail, jobTitle, department
+ *
+ * @param {string} filePath - Path to the XLSX file
+ * @returns {Object[]} - Array of user objects
+ */
+function parseImportXLSX(filePath) {
+  const resolvedPath = path.resolve(filePath);
+  if (!fs.existsSync(resolvedPath)) {
+    throw new Error(`File not found: ${resolvedPath}`);
+  }
+
+  const workbook = XLSX.readFile(resolvedPath);
+  const sheetName = workbook.SheetNames[0];
+  if (!sheetName) throw new Error("XLSX file has no sheets");
+
+  const records = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" });
+
+  const users = [];
+  for (const record of records) {
+    const emailKey = Object.keys(record).find((k) => k.toLowerCase().trim() === "email");
+    if (!emailKey || !record[emailKey]) continue;
+
+    const email = String(record[emailKey]).trim().toLowerCase();
+    if (!isValidEmail(email)) {
+      console.warn(`WARNING: Skipping invalid email: ${email}`);
+      continue;
+    }
+
+    const altEmailKey = Object.keys(record).find((k) => k.toLowerCase().replace(/[^a-z]/g, "") === "alternateemail");
+    const jobTitleKey = Object.keys(record).find((k) => k.toLowerCase().replace(/[^a-z]/g, "") === "jobtitle");
+    const departmentKey = Object.keys(record).find((k) => k.toLowerCase().trim() === "department");
+
+    const derived = deriveUserDetailsFromEmail(email);
+
+    users.push({
+      email,
+      alternateEmail: altEmailKey && record[altEmailKey] ? String(record[altEmailKey]).trim() : "",
+      jobTitle: jobTitleKey && record[jobTitleKey] ? String(record[jobTitleKey]).trim() : "",
+      department: departmentKey && record[departmentKey] ? String(record[departmentKey]).trim() : "",
+      username: derived.username,
+      firstname: derived.firstname,
+      lastname: derived.lastname,
+    });
+  }
+
+  if (users.length === 0) {
+    throw new Error("No valid user records found in the XLSX file. Ensure there is an 'email' column.");
+  }
+
+  return users;
+}
+
+/**
+ * Auto-detect file type (.csv or .xlsx) and parse for import.
+ * This is the recommended function to use in commands.
+ *
+ * @param {string} filePath
+ * @returns {Object[]}
+ */
+function parseImportFile(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  if (ext === ".xlsx" || ext === ".xls") {
+    return parseImportXLSX(filePath);
+  }
+  return parseImportCSV(filePath);
+}
+
+function parseFile(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  if (ext === ".xlsx" || ext === ".xls") {
+    return parseXLSX(filePath);
+  }
+  return parseCSV(filePath);
+}
+
 module.exports = {
+  parseFile,
   parseCSV,
   parseImportCSV,
+  parseImportFile,
+  parseXLSX,
+  parseImportXLSX,
   isValidEmail,
   deriveUserDetailsFromEmail,
 };
